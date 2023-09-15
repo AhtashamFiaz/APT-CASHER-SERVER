@@ -1,0 +1,86 @@
+
+
+
+
+Setting Up an APT-Caching Server Using Apt-Cacher NG
+
+Objective:
+The primary objective of this configuration is to establish an APT (Advanced Package Tool) caching server on the "sp-temp-dbrestore" server. This server, acting as a caching proxy, will efficiently manage and distribute software packages, significantly improving package management on connected servers. A key aspect of this setup is to restrict internet access for clients to protect them from the internet while allowing limited access only to the caching server.
+
+Server Overview:
+
+1. Server with Internet Access (sp-temp-db restore):
+   - This server enjoys unrestricted access to the internet.
+   - It operates as the APT-Caching Server.
+   - Its primary role is to serve as a centralized repository for APT packages.
+
+2. Server with Limited Internet Access (sp-temp-dbrestore2):
+   - This server does not possess direct internet connectivity.
+   - Internet access is expressly blocked for this server, except for interactions with the APT-Caching Server (sp-temp-dbrestore).
+
+Deployment Process:
+
+Step 1: Configuration of the APT-Caching Server (sp-temp-dbrestore)
+
+- Update and Upgrade: Keep the server up to date:
+   
+   apt-get update -y
+   apt-get upgrade -y
+   
+
+- Installation of Apt-Cacher NG:Install Apt-Cacher NG:
+   
+   apt-get install apt-cacher-ng -y
+   
+- Service Activation:Enable and start the Apt-Cacher NG service:
+  
+   systemctl start apt-cacher-ng
+   systemctl enable apt-cacher-ng
+  
+
+- Service Status Verification: Check the status of Apt-Cacher NG:
+  
+   systemctl status apt-cacher-ng
+ 
+
+-Port Validation:Confirm that Apt-Cacher NG is actively listening on port 3142:
+
+      ss -altnp | grep apt
+   
+Step 2: Configuration of the Client Server (sp-temp-dbrestore2)
+
+- Client Configuration: Configure the client to utilize "sp-temp-dbrestore" as its primary APT package source. Edit the configuration file:
+  
+   nano /etc/apt/apt.conf.d/00aptproxy
+  
+   Insert this line, replace `your-server-ip` with the IP address of "sp-temp-dbrestore":
+
+     Acquire::http::Proxy "http://your-server-ip:3142";
+  
+   Save the file.
+
+-Internet Access Restriction: Use `iptables` to block all outgoing internet connections from "dbrestore2," except for connections to "sp-temp-dbrestore." Allow port 443 for HTTPS and accept input at port 443 from "sp-temp-dbrestore." Execute the following commands:
+  
+   iptables -A OUTPUT -j DROP
+   iptables -I OUTPUT -d your-server-ip -j ACCEPT
+   iptables -I INPUT -s your-server-ip -p tcp --sport 443 -j ACCEPT
+   
+Validation and Testing:
+
+- Verify the functionality of the system by installing software packages, such as Grafana and NumPy, on "sp-temp-dbrestore2."
+
+Access Restriction for Enhanced Security:
+- The primary focus of this configuration is to block internet access for client servers, providing protection against external threats while allowing controlled access only to the caching server.
+
+Log Monitoring:
+- Apt-Cacher NG logs on "dbrestore" (Cacher Server) are stored in "/var/log/apt-cacher-ng/." 
+
+Monitor these logs with:
+   
+   tail -f /var/log/apt-cacher-ng/apt-cacher.log
+  
+
+Conclusion:
+
+By establishing an APT-Caching Server using Apt-Cacher NG on "sp-temp-dbrestore," we have significantly improved package management efficiency on "sp-temp-dbrestore2." The latter can now seamlessly access and install software packages, relying on the caching server as its primary source. This architecture enhances security, reliability, and speed in software deployment.
+
